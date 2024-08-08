@@ -1,8 +1,6 @@
-# Setting up sockets
-import socket
-# Each thread operates independently, allowing the program to execute multiple tasks concurrently
-# and improve overall efficiency.
-import threading
+import socket # Setting up the socket library
+import threading # Setting up the library for threading. Each thread operates independently,
+# allowing the program to execute multiple tasks concurrently and improve overall efficiency.
 
 IP = '127.0.0.1'
 PORT = 9998
