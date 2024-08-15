@@ -1,11 +1,18 @@
-import socket # Setting up the socket library
-import threading # Setting up the library for threading. Each thread operates independently,
-# allowing the program to execute multiple tasks concurrently and improve overall efficiency.
+import socket
+import threading
+import time
+
+# Define a rate limit (e.g., max_requests per time_window seconds)
+MAX_REQUESTS = 3
+TIME_WINDOW = 10  # time window in seconds
+
+# Dictionary to store the request timestamps for each client
+client_requests = {}
 
 IP = '127.0.0.1'
 PORT = 9998
 
-def main():  # Now we are going to define our function and call it main.
+def main():
     # In this main function, we are going to set up a server object and assign it
     # to our TCP connection.
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -34,16 +41,48 @@ def main():  # Now we are going to define our function and call it main.
     finally:
         server.close()  # Ensure that the server socket is closed properly.
 
-def handle_client(client_socket):  # Function defined to handle client connections.
-    while True:  # This 'while True' loop needs to run indefinitely to handle incoming data from the client.
+def handle_client(client_socket):
+    client_address = client_socket.getpeername()  # Get the client's IP and port
+    client_ip = client_address[0]
+
+    while True:  # This 'while True' loop needs to run indefinitely to handle incoming data from the client machine.
         try:
+            # Rate Time Limiting Check
+            current_time = time.time()
+            if client_ip in client_requests:
+                request_times = client_requests[client_ip]
+                # Remove timestamps outside of the time window
+                request_times = [t for t in request_times if current_time - t < TIME_WINDOW] # This function generates
+                # a new list that includes only the timestamps from the request_times collection that fall within the
+                # specified TIME_WINDOW. In other words, it filters out any timestamps that lie outside the defined
+                # time frame, thereby retaining solely the most recent requests.
+                client_requests[client_ip] = request_times
+
+                # What do these lines of code mean?
+
+                if len(request_times) >= MAX_REQUESTS: # If the length (i.e. "number of items") of request_times
+                    # (attempts) is more than or equal to the MAX_REQUESTS you can make. Then send (print) the
+                    # error_message and break the try loop.
+
+                    # Since it would not be "true," it would be "false" logic for the number of requests to be more
+                    # than or equal to the given TIME_WINDOW of opportunity to make a request (request_time) which is
+                    # the same as the current_time.
+
+                    error_message = "Error: Rate limit exceeded. Please try again later."
+                    client_socket.send(error_message.encode("utf-8"))
+                    print(f'[*] Rate limit exceeded for {client_ip}')
+                    break
+
+            # Receive data from the client
             request = client_socket.recv(1024)  # We can receive up to 1024 bytes of data from the tcp client.
-            # The data the client sends might come in as several small packets or one big packet.
-            # Using a 1024-byte buffer lets you handle a good amount of data to the server with just one receive call,
-            # without needing a ton of memory.
             if not request:  # If no data is received, it means the client has closed the connection.
                 break
             print(f'[*] Requested: {request.decode("utf-8")}')  # Print the received data.
+
+            # Add (or "append") the current timestamp to the client's request times
+            if client_ip not in client_requests:
+                client_requests[client_ip] = []
+            client_requests[client_ip].append(current_time)
 
             # Send an ACK response to the client to acknowledge receipt of the data.
             ack_message = "ACK"  # This message is to be sent as an acknowledgment that the server received the
@@ -52,7 +91,7 @@ def handle_client(client_socket):  # Function defined to handle client connectio
             # back to the client.
 
         except Exception as e:
-            print(f"Error: {e}")  # Log any errors encountered during data reception.
+            print(f"Error: {e}")  # Log any errors encountered during data reception, if any.
             break
     client_socket.close()  # Close the client socket when done.
 
